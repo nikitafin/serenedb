@@ -122,8 +122,9 @@ velox::AllowedCoercions AllowedCoercions() {
                          velox::HUGEINT(), velox::REAL(), velox::DOUBLE()});
   add(velox::SMALLINT(), {velox::INTEGER(), velox::BIGINT(), velox::HUGEINT(),
                           velox::REAL(), velox::DOUBLE()});
-  add(velox::INTEGER(), {velox::BIGINT(), velox::HUGEINT(), velox::DOUBLE()});
-  add(velox::BIGINT(), {velox::HUGEINT(), velox::DOUBLE()});
+  add(velox::INTEGER(),
+      {velox::BIGINT(), velox::HUGEINT(), velox::REAL(), velox::DOUBLE()});
+  add(velox::BIGINT(), {velox::HUGEINT(), velox::REAL(), velox::DOUBLE()});
   add(velox::REAL(), {velox::DOUBLE()});
   add(velox::DATE(), {velox::TIMESTAMP()});
 
