@@ -630,7 +630,7 @@ class DataSinkTest : public ::testing::Test,
 
   // Test column of arrays. Possibly dictionary encoded.
   template<velox::TypeKind Kind, typename DataType>
-  void MakeTestDictionatyEncodedArrayColumn(
+  void MakeTestDictionaryEncodedArrayColumn(
     const std::vector<std::vector<DataType>>& data,
     const std::vector<velox::vector_size_t>& indices,
     const std::vector<bool>& dict_nulls) {
@@ -658,10 +658,10 @@ class DataSinkTest : public ::testing::Test,
 
   template<velox::TypeKind Kind, typename DataType>
   void MakeTestWriteArray(const std::vector<std::vector<DataType>>& data) {
-    MakeTestDictionatyEncodedArrayColumn<Kind>(data, {}, {});
+    MakeTestDictionaryEncodedArrayColumn<Kind>(data, {}, {});
   }
 
-  // Test array made of dictionaty encoded vectors.
+  // Test array made of Dictionary encoded vectors.
   template<velox::TypeKind Kind, typename DataType>
   void MakeTestEncodedArrayDict(
     const std::vector<DataType>& data,
@@ -714,7 +714,7 @@ class DataSinkTest : public ::testing::Test,
         ASSERT_TRUE(data->isNullAt(i));
         continue;
       }
-      // make adress sanitizer happy
+      // make address sanitizer happy
       irs::bytes_view value_bytes(
         reinterpret_cast<const irs::byte_type*>(value.data()), value.size());
       velox::VectorPtr actual;
@@ -1057,7 +1057,7 @@ TEST_F(DataSinkTest, test_tableWriteIntArrayNullsDictionary) {
     {5, 9, std::nullopt}};
   std::vector<velox::vector_size_t> indices{3, 2, 1};
   std::vector<bool> dict_nulls = {};
-  MakeTestDictionatyEncodedArrayColumn<velox::TypeKind::INTEGER>(data, indices,
+  MakeTestDictionaryEncodedArrayColumn<velox::TypeKind::INTEGER>(data, indices,
                                                                  dict_nulls);
 }
 
@@ -1070,7 +1070,7 @@ TEST_F(DataSinkTest, test_tableWriteIntArrayNullsDictionaryNulls) {
     {5, 9, std::nullopt}};
   std::vector<velox::vector_size_t> indices{3, 2, 1, 4, 4, 0};
   std::vector<bool> dict_nulls = {true, false, false, true, false, false};
-  MakeTestDictionatyEncodedArrayColumn<velox::TypeKind::INTEGER>(data, indices,
+  MakeTestDictionaryEncodedArrayColumn<velox::TypeKind::INTEGER>(data, indices,
                                                                  dict_nulls);
 }
 
@@ -1079,7 +1079,7 @@ TEST_F(DataSinkTest, test_tableWriteIntArrayDictionaryNulls) {
     {1, 2, 3}, {3, 2, 1}, {5, 6, 7}, {5, 9}};
   std::vector<velox::vector_size_t> indices{3, 2, 1, 0};
   std::vector<bool> dict_nulls = {true, false, false, true};
-  MakeTestDictionatyEncodedArrayColumn<velox::TypeKind::INTEGER>(data, indices,
+  MakeTestDictionaryEncodedArrayColumn<velox::TypeKind::INTEGER>(data, indices,
                                                                  dict_nulls);
 }
 
@@ -1092,7 +1092,7 @@ TEST_F(DataSinkTest, test_tableWriteBoolArrayNullsDictionary) {
     {false, true, std::nullopt}};
   std::vector<velox::vector_size_t> indices{3, 2, 1};
   std::vector<bool> dict_nulls = {};
-  MakeTestDictionatyEncodedArrayColumn<velox::TypeKind::BOOLEAN>(data, indices,
+  MakeTestDictionaryEncodedArrayColumn<velox::TypeKind::BOOLEAN>(data, indices,
                                                                  dict_nulls);
 }
 
@@ -1105,7 +1105,7 @@ TEST_F(DataSinkTest, test_tableWriteBoolArrayNullsDictionaryNulls) {
     {false, true, std::nullopt}};
   std::vector<velox::vector_size_t> indices{3, 2, 1, 4, 4, 0};
   std::vector<bool> dict_nulls = {true, false, false, true, false, false};
-  MakeTestDictionatyEncodedArrayColumn<velox::TypeKind::BOOLEAN>(data, indices,
+  MakeTestDictionaryEncodedArrayColumn<velox::TypeKind::BOOLEAN>(data, indices,
                                                                  dict_nulls);
 }
 
@@ -1116,7 +1116,7 @@ TEST_F(DataSinkTest, test_tableWriteBoolArrayDictionaryNulls) {
                                          {false, true}};
   std::vector<velox::vector_size_t> indices{3, 2, 1, 0};
   std::vector<bool> dict_nulls = {true, false, false, true};
-  MakeTestDictionatyEncodedArrayColumn<velox::TypeKind::BOOLEAN>(data, indices,
+  MakeTestDictionaryEncodedArrayColumn<velox::TypeKind::BOOLEAN>(data, indices,
                                                                  dict_nulls);
 }
 
@@ -1129,7 +1129,7 @@ TEST_F(DataSinkTest, test_tableWriteVarcharArrayNullsDictionary) {
     {"", "", std::nullopt}};
   std::vector<velox::vector_size_t> indices{3, 2, 1};
   std::vector<bool> dict_nulls = {};
-  MakeTestDictionatyEncodedArrayColumn<velox::TypeKind::VARCHAR>(data, indices,
+  MakeTestDictionaryEncodedArrayColumn<velox::TypeKind::VARCHAR>(data, indices,
                                                                  dict_nulls);
 }
 
@@ -1142,7 +1142,7 @@ TEST_F(DataSinkTest, test_tableWriteVarcharArrayNullsDictionaryNulls) {
     {"", "", std::nullopt}};
   std::vector<velox::vector_size_t> indices{3, 2, 1, 4, 4, 0};
   std::vector<bool> dict_nulls = {true, false, false, true, false, false};
-  MakeTestDictionatyEncodedArrayColumn<velox::TypeKind::VARCHAR>(data, indices,
+  MakeTestDictionaryEncodedArrayColumn<velox::TypeKind::VARCHAR>(data, indices,
                                                                  dict_nulls);
 }
 
@@ -1154,7 +1154,7 @@ TEST_F(DataSinkTest, test_tableWriteVarcharArrayDictionaryNulls) {
     {"false", "true"}};
   std::vector<velox::vector_size_t> indices{3, 2, 1, 0};
   std::vector<bool> dict_nulls = {true, false, false, true};
-  MakeTestDictionatyEncodedArrayColumn<velox::TypeKind::VARCHAR>(data, indices,
+  MakeTestDictionaryEncodedArrayColumn<velox::TypeKind::VARCHAR>(data, indices,
                                                                  dict_nulls);
 }
 
