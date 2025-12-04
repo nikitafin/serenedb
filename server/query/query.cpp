@@ -30,6 +30,7 @@
 #include <velox/expression/Expr.h>
 #include <velox/vector/VariantToVector.h>
 
+#include "basics/logger/logger.h"
 #include "catalog/table.h"
 #include "connector/serenedb_connector.hpp"
 #include "pg/sql_resolver.h"
@@ -171,7 +172,11 @@ void Query::CompileQuery() {
 
   auto best = optimization.bestPlan();
   // This is not really good for prepared statements, but it works for now
+
+  SDB_PRINT("[mkornaukhov] BEFORE Optimization::toVeloxPlan");
   auto result = optimization.toVeloxPlan(best->op);
+  SDB_PRINT("[mkornaukhov] AFTER Optimization::toVeloxPlan");
+
   _execution_plan = std::move(result.plan);
   _finish_write = std::move(result.finishWrite);
 }

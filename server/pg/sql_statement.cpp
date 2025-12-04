@@ -91,8 +91,10 @@ bool SqlStatement::ProcessNextRoot(
                                ConnectionContext::GetConfig(connection_ctx)}),
     objects};
 
+  SDB_PRINT("[mkornaukhov] BEFORE ANALYZE VELOX: ", query_string->data());
   auto query_desc = pg::AnalyzeVelox(*raw_stmt, *query_string, objects,
                                      id_generator, query_ctx, params);
+  SDB_PRINT("[mkornaukhov] AFTER ANALYZE VELOX");
 
   if (query_desc.type == pg::SqlCommandType::Show) {
     SDB_ASSERT(query_desc.pgsql_node);

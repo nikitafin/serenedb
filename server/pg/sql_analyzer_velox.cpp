@@ -44,15 +44,19 @@
 #include <velox/functions/prestosql/types/UuidType.h>
 #include <velox/type/SimpleFunctionApi.h>
 #include <velox/type/Type.h>
+#include <velox/type/TypeCoercer.h>
 #include <velox/vector/FlatVector.h>
 
 #include <algorithm>
+#include <exception>
 #include <expected>
 #include <iresearch/types.hpp>
 #include <memory>
 
+#include "basics/assert.h"
 #include "basics/containers/flat_hash_map.h"
 #include "basics/down_cast.h"
+#include "basics/exceptions.h"
 #include "basics/utf8_utils.hpp"
 #include "catalog/function.h"
 #include "catalog/sql_function_impl.h"
@@ -1723,6 +1727,47 @@ void SqlAnalyzer::ProcessLimitNodes(State& state, const Node* limit_offset,
     limit_count_value);
 }
 
+namespace {
+// TODO think about performance, awful for now
+
+std::vector<velox::TypePtr> GetTypes(const std::vector<lp::ExprPtr>& row,
+                                     size_t row_size) {
+  std::vector<velox::TypePtr> types;
+  types.reserve(row_size);
+  for (const auto& value : row) {
+    types.push_back(value->type());
+  }
+  return types;
+}
+
+std::pair<std::vector<velox::TypePtr>, bool> TryRowCoercion(
+  std::vector<std::vector<lp::ExprPtr>>& values, size_t row_size) {
+  if (values.empty()) [[unlikely]] {
+    return {};
+  }
+  std::vector<velox::TypePtr> types = GetTypes(values[0], row_size);
+
+  const auto rows_cnt = values.size();
+  bool need_cast = false;
+  for (size_t row_i = 1; row_i < rows_cnt; ++row_i) {
+    for (size_t col_i = 0; col_i < row_size; ++col_i) {
+      if (!velox::TypeCoercer::coercible(values[row_i][col_i]->type(),
+                                         types[col_i])) {
+        if (!velox::TypeCoercer::coercible(types[col_i],
+                                           values[row_i][col_i]->type())) {
+          SDB_THROW(sdb::ERROR_INTERNAL,
+                    "Not coercible ( values (...), (...), ... )");
+        }
+        types[col_i] = values[row_i][col_i]->type();
+        need_cast = true;
+      }
+    }
+  }
+
+  return {types, need_cast};
+}
+}  // namespace
+
 void SqlAnalyzer::ProcessValuesList(State& state, const List* list) {
   int row_size = -1;
   bool const_values = true;
@@ -1778,14 +1823,40 @@ void SqlAnalyzer::ProcessValuesList(State& state, const List* list) {
   }
 
   if (const_values) {
-    std::vector<velox::TypePtr> types;
-    types.reserve(row_size);
-    for (const auto& value : values.back()) {
-      types.push_back(value->type());
+    auto [types, need_cast] = TryRowCoercion(values, row_size);
+    // TODO here!
+    // std::vector<velox::TypePtr> coercions;
+
+    if (need_cast) {
+      for (auto& row : values) {
+        for (size_t i = 0; i < row_size; ++i) {
+          row[i] = MakeCast(types[i], row[i]);
+        }
+      }
+
+      row_values.clear();
+      for (auto& row : values) {
+        columns_values.clear();
+        for (auto& value : row) {
+          try {
+            auto column_value =
+              axiom::optimizer::ConstantExprEvaluator::evaluateConstantExpr(
+                *value);
+            columns_values.push_back(std::move(column_value));
+          } catch (const std::exception& s) {
+            SDB_ASSERT(false, "Cast is not constant expr =(", s.what());
+          }
+        }
+        row_values.emplace_back(velox::Variant::row(std::move(columns_values)));
+      }
     }
+
     state.root = std::make_shared<lp::ValuesNode>(
       _id_generator.NextPlanId(),
       velox::ROW(std::move(names), std::move(types)), std::move(row_values));
+
+    // ApplyCoercions(args, coercions);
+
     return;
   }
 
