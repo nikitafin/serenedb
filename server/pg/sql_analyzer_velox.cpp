@@ -152,9 +152,10 @@ enum class ExprKind {
   AggregateArgument,                 // arguments of aggregate function
 };
 
-constexpr auto kSpecialFormPlaceholder = static_cast<lp::SpecialForm>(
-  std::numeric_limits<std::underlying_type_t<lp::SpecialForm>>::max());
+constexpr lp::SpecialForm kSpecialFormPlaceholder{
+  std::numeric_limits<std::underlying_type_t<lp::SpecialForm>>::max()};
 
+// axiom special form; doesn't exist in velox
 const containers::FlatHashMap<std::string_view, lp::SpecialForm> kSpecialForms{
   {"and", lp::SpecialForm::kAnd},
   {"cast", lp::SpecialForm::kCast},
@@ -165,26 +166,17 @@ const containers::FlatHashMap<std::string_view, lp::SpecialForm> kSpecialForms{
   {"switch", lp::SpecialForm::kSwitch},
   {"try", lp::SpecialForm::kTry},
   {"row_constructor", kSpecialFormPlaceholder},
-  {"in", lp::SpecialForm::kIn}};  // axiom special form; doesn't exist in velox
-
-bool IsSpecialFormFunction(std::string_view func_name) {
-  return kSpecialForms.contains(func_name);
-}
+  {"in", lp::SpecialForm::kIn},
+};
 
 velox::TypePtr ResolveFunction(const std::string& function_name,
                                const std::vector<velox::TypePtr>& arg_types,
                                std::vector<velox::TypePtr>* arg_coercions) {
-  if (IsSpecialFormFunction(function_name)) {
-    if (function_name == "in") {
-      return velox::BOOLEAN();
-    }
-    return velox::resolveCallableSpecialForm(function_name, arg_types);
-  }
   if (arg_coercions) {
-    return velox::resolveFunctionWithCoercions(function_name, arg_types,
-                                               *arg_coercions);
+    return velox::resolveFunctionOrCallableSpecialFormWithCoercions(
+      function_name, arg_types, *arg_coercions);
   }
-  return velox::resolveFunction(function_name, arg_types);
+  return velox::resolveFunctionOrCallableSpecialForm(function_name, arg_types);
 }
 
 std::vector<velox::TypePtr> GetExprsTypes(
@@ -2987,33 +2979,20 @@ lp::ExprPtr SqlAnalyzer::MaybeIntervalOp(std::string_view op, lp::ExprPtr& lhs,
     return nullptr;
   }
 
-  const auto is_interval_op = [this](auto&& self, lp::ExprPtr& lhs,
-                                     lp::ExprPtr& rhs) -> bool {
+  const auto is_interval_op = [](lp::ExprPtr& lhs, lp::ExprPtr& rhs) -> bool {
     const auto& l_type = lhs->type();
     const auto& r_type = rhs->type();
-    if (pg::IsInterval(r_type)) {
-      if (l_type->isDate()) {
-        lhs = MakeCast(velox::TIMESTAMP(), std::move(lhs));
-        return true;
-      }
-
-      return l_type->isTimestamp() || pg::IsInterval(l_type);
-    }
-
-    if (pg::IsInterval(l_type)) {
-      return self(self, rhs, lhs);
-    }
-
-    return false;
+    return pg::IsInterval(r_type) &&
+           (l_type->isDate() || l_type->isTimestamp() ||
+            pg::IsInterval(l_type));
   };
 
-  if (!is_interval_op(is_interval_op, lhs, rhs)) {
+  if (!is_interval_op(lhs, rhs) && !is_interval_op(rhs, lhs)) {
     return nullptr;
   }
 
-  return std::make_shared<lp::CallExpr>(
-    velox::TIMESTAMP(), std::string{it->second},
-    std::vector<lp::ExprPtr>{std::move(lhs), std::move(rhs)});
+  return ResolveVeloxFunctionAndInferArgsCommonType(
+    std::string{it->second}, {std::move(lhs), std::move(rhs)});
 }
 
 lp::ExprPtr SqlAnalyzer::MaybeTimeOp(std::string_view op, lp::ExprPtr& lhs,
