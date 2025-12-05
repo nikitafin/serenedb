@@ -303,6 +303,7 @@ void SerializeDecimal(SerializationContext context,
 
     if (extra_base != 1) {  // Adjust dscale to be multiple of 4 for ndigits
       data -= 2;
+      ndigits--;
       int16_t extra_value = (value % (kBaseSystem / extra_base)) * extra_base;
       value /= (kBaseSystem / extra_base);
       absl::big_endian::Store16(data, extra_value);
@@ -310,10 +311,12 @@ void SerializeDecimal(SerializationContext context,
 
     while (value != 0) {
       data -= 2;
+      ndigits--;
       absl::big_endian::Store16(data,
                                 static_cast<int16_t>(value % kBaseSystem));
       value /= kBaseSystem;
     }
+    SDB_ASSERT(ndigits == 0);
   }
 }
 
