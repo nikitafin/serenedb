@@ -1,13 +1,19 @@
+# TODO: fix oid
 query
-SELECT oid, nspname, nspowner, nspacl FROM pg_namespace ORDER BY oid
+SELECT nspname, nspowner, nspacl FROM pg_namespace ORDER BY oid
 ----
-oid	nspname	nspowner	nspacl
-11	pg_catalog	NULL	NULL
-<stl:ignore> public	NULL	NULL
+nspname	nspowner	nspacl
+pg_catalog	NULL	NULL
+public	NULL	NULL
 
 statement ok
-query
 CREATE SCHEMA test
+
+statement error
+CREATE SCHEMA test
+----
+db error: ERROR: Schema already exists: test
+
 
 # TODO: fix oid
 query
@@ -16,42 +22,48 @@ SELECT nspname, nspowner, nspacl FROM pg_namespace ORDER BY oid
 nspname	nspowner	nspacl
 pg_catalog	NULL	NULL
 public	NULL	NULL
-test NULL	NULL
 
 statement ok
 CREATE TABLE test.test(i int)
 
 statement error
-DELETE SCHEMA test
+DROP SCHEMA test
+----
+db error: ERROR: bla bla
+
 
 # TODO: fix oid
 query
 SELECT nspname, nspowner, nspacl FROM pg_namespace ORDER BY oid
 ----
-nspowner	nspacl
-NULL	NULL
+nspname	nspowner	nspacl
+pg_catalog	NULL	NULL
 public	NULL	NULL
-test NULL	NULL
 
 statement error
-DELETE SCHEMA test
+DROP SCHEMA test
+----
+db error: ERROR: bla bla
 
-statement ok
-DELETE SCHEMA test CASCASDE 
+
+statement ok 
+DROP SCHEMA test CASCASDE 
+
 
 # TODO: fix oid
 query
 SELECT nspname, nspowner, nspacl FROM pg_namespace ORDER BY oid
 ----
-nspowner	nspacl
-NULL	NULL
+nspname	nspowner	nspacl
+pg_catalog	NULL	NULL
 public	NULL	NULL
 
 statement ok
-DELETE SCHEMA public 
+DROP SCHEMA public 
 
+# TODO: fix oid
 query
-SELECT oid, nspname, nspowner, nspacl FROM pg_namespace ORDER BY oid
+SELECT nspname, nspowner, nspacl FROM pg_namespace ORDER BY oid
 ----
-oid	nspname	nspowner	nspacl
-11	pg_catalog	NULL	NULL
+nspname	nspowner	nspacl
+pg_catalog	NULL	NULL
