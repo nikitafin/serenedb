@@ -278,7 +278,14 @@ void SerializeDecimal(SerializationContext context,
     int16_t extra_digits = (4 - (scale % 4)) % 4;
     auto extra_base =
       static_cast<int16_t>(velox::DecimalUtil::kPowersOfTen[extra_digits]);
+
+    auto sign = (value < 0) ? kNegative : kPositive;
+    value = value < 0 ? -value : value;
+
     int16_t ndigits = [extra_base](auto value) -> int16_t {
+      if (value == 0) {
+        return 0;
+      }
       int16_t ndigits = 0;
       if (extra_base != 1) {
         ndigits++;
@@ -291,9 +298,7 @@ void SerializeDecimal(SerializationContext context,
     }(value);
 
     auto weight = static_cast<int16_t>(ndigits - ((scale + 3) / 4) - 1);
-    auto sign = (value < 0) ? kNegative : kPositive;
     auto dscale = static_cast<int16_t>(scale);
-    value = value < 0 ? -value : value;
     auto* data = context.buffer->GetContiguousData(8 + ndigits * 2);
     absl::big_endian::Store16(data, ndigits);
     absl::big_endian::Store16(data + 2, weight);
@@ -301,7 +306,8 @@ void SerializeDecimal(SerializationContext context,
     absl::big_endian::Store16(data + 6, dscale);
     data += 8 + ndigits * 2;
 
-    if (extra_base != 1) {  // Adjust dscale to be multiple of 4 for ndigits
+    // Adjust dscale to be multiple of 4 for ndigits
+    if (extra_base != 1 && value != 0) {
       data -= 2;
       ndigits--;
       int16_t extra_value = (value % (kBaseSystem / extra_base)) * extra_base;
