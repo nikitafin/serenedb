@@ -264,42 +264,6 @@ column1 column2 column3 column1 column2 column3
 
 
 query
-SELECT *
-FROM
-(
-  VALUES ('pudgino'), ('mom'), ('tralaleolo tralalala')
-)
-WHERE EXISTS(SELECT 'pathetic exists thinks that he does somethings');
-----
-column1
-pudgino
-mom
-tralaleolo tralalala
-
-
-query
-SELECT *
-FROM
-(
-  VALUES ('clickclack', 666),
-         ('deadinside', 993),
-         ('pudge', 228)
-) AS lol(kostya, vedernikoff)
-WHERE EXISTS (
-  SELECT 1
-  FROM
-  (
-    VALUES ('abugubugu', 777)
-  ) AS kek(whoever, whatever)
-);
-----
-kostya vedernikoff
-clickclack 666
-deadinside 993
-pudge 228
-
-
-query
 WITH networth AS (
   SELECT
     guy AS name,
@@ -366,6 +330,20 @@ pudge 150
 # ----
 
 
+query
+SELECT *
+FROM
+(
+  VALUES ('pudgino'), ('mom'), ('tralaleolo tralalala')
+)
+WHERE EXISTS(SELECT 'pathetic exists thinks that he does somethings');
+----
+column1
+pudgino
+mom
+tralaleolo tralalala
+
+
 # query -- there's no node in axiom
 # WITH tindex(name, salary) AS (
 #   VALUES ('babsky', 999993), ('vitalig', 9999999), ('bulatb', 9)
@@ -373,6 +351,29 @@ pudge 150
 # SELECT *
 # FROM tindex
 # WHERE salary >= ALL(SELECT salary FROM tindex);
+
+
+query
+SELECT *
+FROM
+(
+  VALUES ('clickclack', 666),
+         ('deadinside', 993),
+         ('pudge', 228)
+) AS lol(kostya, vedernikoff)
+WHERE EXISTS (
+  SELECT 1
+  FROM
+  (
+    VALUES ('abugubugu', 777)
+  ) AS kek(whoever, whatever)
+);
+----
+kostya vedernikoff
+clickclack 666
+deadinside 993
+pudge 228
+
 
 # query -- doesn't work in axiom
 # SELECT * FROM
