@@ -129,8 +129,10 @@ velox::AllowedCoercions AllowedCoercions() {
   add(velox::DATE(), {velox::TIMESTAMP()});
 
   add(pg::UNKNOWN(), {velox::VARCHAR()});
-  add(velox::VARCHAR(), {pg::UNKNOWN()});  // Remove later. Signature of
-                                           // varchars should be used instead
+  add(pg::UNKNOWN(), {{velox::SMALLINT(), velox::INTEGER(), velox::BIGINT(),
+                       velox::HUGEINT(), velox::REAL(), velox::DOUBLE()}});
+  // add(velox::VARCHAR(), {pg::UNKNOWN()});  // Remove later. Signature of
+  // varchars should be used instead
 
   return coercions;
 }
@@ -174,7 +176,7 @@ void PostgresFeature::prepare() {
 void PostgresFeature::start() {
   // for debug
   // std::this_thread::sleep_for(std::chrono::seconds(10));
-  pg::RegisterSystemViews();
+  // pg::RegisterSystemViews();
 
   auto& selector = server().getFeature<EngineSelectorFeature>();
   if (selector.isRocksDB() && (ServerState::instance()->IsDBServer() ||
