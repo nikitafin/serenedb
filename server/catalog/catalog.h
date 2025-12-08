@@ -230,11 +230,15 @@ class CatalogFeature final : public SerenedFeature {
  private:
   Result OpenDatabase(DatabaseOptions database);
   Result AddDatabase(const DatabaseOptions& database);
-  Result AddSchemas(ObjectId database_id, std::string_view database_name);
-  Result AddViews(ObjectId database_id, std::string_view database_name);
-  Result AddFunctions(ObjectId database_id, std::string_view database_name);
+  Result AddSchemas(ObjectId database_id, std::string_view database_name,
+                    std::vector<std::shared_ptr<Schema>>& schemas);
+  Result AddViews(ObjectId database_id, const Schema& schema,
+                  std::string_view database_name);
+  Result AddFunctions(ObjectId database_id, const Schema& schema,
+                      std::string_view database_name);
   Result AddRoles();
-  Result AddTables(ObjectId database_id, std::string_view database_name);
+  Result AddTables(ObjectId database_id, const Schema& schema,
+                   std::string_view database_name);
   Result ProcessTombstones();
 
   std::shared_ptr<LogicalCatalog> _global;

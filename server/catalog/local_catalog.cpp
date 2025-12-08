@@ -450,15 +450,19 @@ class Snapshot {
                         std::shared_ptr<SchemaObject> object, W&& writer) {
     return ResolveSchema(
       database, schema, [&](auto database_it, auto schema_it) -> Result {
-        const auto [object_it, is_new] = schema_it->second.emplace(object);
+        const auto [object_it, is_new] =
+          schema_it->second.emplace(std::move(object));
 
         if (!is_new) {
           return {ERROR_SERVER_DUPLICATE_NAME,
-                  "Object already exists: ", object->GetName()};
+                  "Object already exists: ", (*object_it)->GetName()};
         }
 
+        // TODO(gnusi): remove after schema management is done
+        (*object_it)->SetSchemaId(schema_it->first->GetId());
+
         return RegisterObjectId(
-          std::move(object), [&] { schema_it->second.erase(object_it); },
+          *object_it, [&] { schema_it->second.erase(object_it); },
           std::forward<W>(writer));
       });
   }
@@ -760,13 +764,13 @@ class Snapshot {
   Result RegisterObjectId(std::shared_ptr<Object> object, auto&& f1,
                           auto&& f2) {
     absl::Cleanup cleanup1 = std::move(f1);
-    const auto [it, is_new] = _objects_by_id.emplace(object);
+    const auto [it, is_new] = _objects_by_id.emplace(std::move(object));
     if (!is_new) {
       return {ERROR_SERVER_DUPLICATE_IDENTIFIER,
-              "Object already exists: ", object->GetId()};
+              "Object already exists: ", (*it)->GetId()};
     }
     absl::Cleanup cleanup2 = [&] { _objects_by_id.erase(it); };
-    if (auto r = f2(object); !r.ok()) {
+    if (auto r = f2(*it); !r.ok()) {
       return r;
     }
     std::move(cleanup2).Cancel();

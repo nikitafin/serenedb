@@ -128,18 +128,18 @@ Result CatalogFeature::Open() {
   }
 
   if (ServerState::instance()->IsSingle()) {
-    if (r = AddRoles(); !r.ok()) {
+    if (auto r = AddRoles(); !r.ok()) {
       return r;
     }
   }
 
   GetServerEngine().VisitDatabases([&](vpack::Slice slice) {
     catalog::DatabaseOptions database;
-    if (r = vpack::ReadTupleNothrow(slice, database); !r.ok()) {
+    if (auto r = vpack::ReadTupleNothrow(slice, database); !r.ok()) {
       return false;
     }
 
-    if (r = OpenDatabase(std::move(database)); !r.ok()) {
+    if (auto r = OpenDatabase(std::move(database)); !r.ok()) {
       return false;
     }
     return true;
@@ -158,8 +158,9 @@ Result CatalogFeature::AddDatabase(const DatabaseOptions& options) {
     std::make_shared<catalog::Database>(options));
 }
 
-Result CatalogFeature::AddSchemas(ObjectId database_id,
-                                  std::string_view database_name) {
+Result CatalogFeature::AddSchemas(
+  ObjectId database_id, std::string_view database_name,
+  std::vector<std::shared_ptr<Schema>>& schemas) {
   auto r = GetServerEngine().VisitObjects(
     database_id, RocksDBEntryType::Schema,
     [&](rocksdb::Slice key, vpack::Slice slice) -> Result {
@@ -168,9 +169,11 @@ Result CatalogFeature::AddSchemas(ObjectId database_id,
         return ErrorMeta(r.errorNumber(), "schema", r.errorMessage(), slice);
       }
 
-      return Global().RegisterSchema(
-        database_id,
-        std::make_shared<catalog::Schema>(database_id, std::move(options)));
+      auto schema =
+        std::make_shared<catalog::Schema>(database_id, std::move(options));
+      schemas.push_back(schema);
+
+      return Global().RegisterSchema(database_id, std::move(schema));
     });
 
   if (!r.ok()) {
@@ -314,11 +317,11 @@ Result CatalogFeature::ProcessTombstones() {
   return {};
 }
 
-Result CatalogFeature::AddTables(ObjectId database_id,
+Result CatalogFeature::AddTables(ObjectId database_id, const Schema& schema,
                                  std::string_view database_name) {
   auto& engine = GetServerEngine();
   auto r = engine.VisitSchemaObjects(
-    database_id, database_id, RocksDBEntryType::Collection,
+    database_id, schema.GetId(), RocksDBEntryType::Collection,
     [&](rocksdb::Slice key, vpack::Slice slice) -> Result {
       CreateTableOptions options;
 
@@ -331,7 +334,7 @@ Result CatalogFeature::AddTables(ObjectId database_id,
                          slice);
       }
 
-      return Local().RegisterTable(database_id, StaticStrings::kPublic,
+      return Local().RegisterTable(database_id, schema.GetName(),
                                    std::move(options));
     });
 
@@ -343,11 +346,11 @@ Result CatalogFeature::AddTables(ObjectId database_id,
   return {};
 }
 
-Result CatalogFeature::AddFunctions(ObjectId database_id,
+Result CatalogFeature::AddFunctions(ObjectId database_id, const Schema& schema,
                                     std::string_view database_name) {
   auto& engine = GetServerEngine();
   auto r = engine.VisitSchemaObjects(
-    database_id, database_id, RocksDBEntryType::Function,
+    database_id, schema.GetId(), RocksDBEntryType::Function,
     [&](rocksdb::Slice key, vpack::Slice slice) -> Result {
       std::shared_ptr<catalog::Function> function;
       auto r =
@@ -356,7 +359,7 @@ Result CatalogFeature::AddFunctions(ObjectId database_id,
         return ErrorMeta(r.errorNumber(), "role", r.errorMessage(), slice);
       }
 
-      return Global().RegisterFunction(database_id, StaticStrings::kPublic,
+      return Global().RegisterFunction(database_id, schema.GetName(),
                                        std::move(function));
     });
 
@@ -368,11 +371,11 @@ Result CatalogFeature::AddFunctions(ObjectId database_id,
   return {};
 }
 
-Result CatalogFeature::AddViews(ObjectId database_id,
+Result CatalogFeature::AddViews(ObjectId database_id, const Schema& schema,
                                 std::string_view database_name) {
   auto& engine = GetServerEngine();
   auto r = engine.VisitSchemaObjects(
-    database_id, database_id, RocksDBEntryType::View,
+    database_id, schema.GetId(), RocksDBEntryType::View,
     [&](rocksdb::Slice key, vpack::Slice slice) -> Result {
       ViewOptions options;
       auto r = ViewOptions::Read(options, slice);
@@ -385,7 +388,7 @@ Result CatalogFeature::AddViews(ObjectId database_id,
       r = CreateViewInstance(view, database_id, std::move(options),
                              ViewContext::Internal);
 
-      return Global().RegisterView(database_id, StaticStrings::kPublic,
+      return Global().RegisterView(database_id, schema.GetName(),
                                    std::move(view));
     });
 
@@ -408,20 +411,26 @@ Result CatalogFeature::OpenDatabase(catalog::DatabaseOptions database) {
       if (auto r = AddDatabase(database); !r.ok()) {
         return r;
       }
-      if (auto r = AddSchemas(database.id, database.name); !r.ok()) {
+
+      std::vector<std::shared_ptr<Schema>> schemas;
+      if (auto r = AddSchemas(database.id, database.name, schemas); !r.ok()) {
         return r;
       }
-      if (ServerState::instance()->IsSingle()) {
-        if (auto r = AddFunctions(database.id, database.name); !r.ok()) {
+
+      for (auto& schema : schemas) {
+        if (ServerState::instance()->IsSingle()) {
+          if (auto r = AddFunctions(database.id, *schema, database.name);
+              !r.ok()) {
+            return r;
+          }
+        }
+        if (auto r = AddTables(database.id, *schema, database.name); !r.ok()) {
           return r;
         }
-      }
-      if (auto r = AddTables(database.id, database.name); !r.ok()) {
-        return r;
-      }
-      if (ServerState::instance()->IsSingle()) {
-        if (auto r = AddViews(database.id, database.name); !r.ok()) {
-          return r;
+        if (ServerState::instance()->IsSingle()) {
+          if (auto r = AddViews(database.id, *schema, database.name); !r.ok()) {
+            return r;
+          }
         }
       }
       return {};
