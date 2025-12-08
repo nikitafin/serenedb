@@ -163,7 +163,7 @@ class UnknownTypeCastOperator : public velox::exec::CastOperator {
               const velox::TypePtr& resultType,  // NOLINT
               velox::VectorPtr& result) const final {
     SDB_ASSERT(resultType);
-    SDB_PRINT("Result type = ", resultType->name());
+    // SDB_PRINT("Result type = ", resultType->name());
     // TODO find out why self in resultType
     SDB_ASSERT(resultType == velox::VARCHAR() || resultType == pg::UNKNOWN());
     context.ensureWritable(rows, resultType, result);

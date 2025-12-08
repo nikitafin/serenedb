@@ -2948,6 +2948,9 @@ lp::ExprPtr SqlAnalyzer::ProcessLikeOp(std::string_view type, lp::ExprPtr input,
                                        lp::ExprPtr pattern) {
   SDB_ASSERT(IsLikeOperator(type));
   lp::ExprPtr escape = MakeConst(std::string_view("\\"), velox::VARCHAR());
+  if (pattern->type() != velox::VARCHAR()) {
+    pattern = MakeCast(velox::VARCHAR(), pattern);
+  }
   pattern = std::make_shared<lp::CallExpr>(
     velox::VARCHAR(), "pg_process_escape_pattern",
     std::vector<lp::ExprPtr>{std::move(pattern)});
@@ -4258,7 +4261,7 @@ velox::TypePtr NameToType(const TypeName& type_name) {
   if (name == "interval") {
     return wrap_in_array(pg::INTERVAL());
   }
-  
+
   // TODO into unknown
   // if (name == "interval") {
   //   return wrap_in_array(pg::INTERVAL());

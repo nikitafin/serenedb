@@ -128,9 +128,9 @@ velox::AllowedCoercions AllowedCoercions() {
   add(velox::REAL(), {velox::DOUBLE()});
   add(velox::DATE(), {velox::TIMESTAMP()});
 
-  add(pg::UNKNOWN(), {velox::VARCHAR()});
-  add(pg::UNKNOWN(), {{velox::SMALLINT(), velox::INTEGER(), velox::BIGINT(),
-                       velox::HUGEINT(), velox::REAL(), velox::DOUBLE()}});
+  add(pg::UNKNOWN(),
+      {{velox::VARCHAR(), velox::SMALLINT(), velox::INTEGER(), velox::BIGINT(),
+        velox::HUGEINT(), velox::REAL(), velox::DOUBLE()}});
   // add(velox::VARCHAR(), {pg::UNKNOWN()});  // Remove later. Signature of
   // varchars should be used instead
 
@@ -175,7 +175,7 @@ void PostgresFeature::prepare() {
 
 void PostgresFeature::start() {
   // for debug
-  std::this_thread::sleep_for(std::chrono::seconds(10));
+  // std::this_thread::sleep_for(std::chrono::seconds(10));
   pg::RegisterSystemViews();
 
   auto& selector = server().getFeature<EngineSelectorFeature>();

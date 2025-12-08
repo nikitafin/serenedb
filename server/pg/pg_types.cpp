@@ -67,13 +67,13 @@ int32_t GetCompositeOID(const velox::TypePtr& type, bool in_array) {
 }  // namespace
 
 int32_t GetTypeOID(const velox::TypePtr& type, bool in_array) {
-  SDB_PRINT("TYPE = ", type->name());
+  // SDB_PRINT("TYPE = ", type->name());
   int32_t composite_oid = GetCompositeOID(type, in_array);
   if (composite_oid >= 0) {
     return composite_oid;
   }
   auto x = GetPrimitiveTypeOID(type->kind(), in_array);
-  SDB_PRINT("OID = ", x);
+  // SDB_PRINT("OID = ", x);
   return x;
 }
 
