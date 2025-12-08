@@ -6,7 +6,7 @@
 
 #include "analyzers.hpp"
 #include "iresearch/utils/attribute_helper.hpp"
-#include "maskings/parse_result.h"
+#include "basics/result.h"
 
 namespace irs::analysis {
 
@@ -19,8 +19,8 @@ class SynonymsTokenizer final : public TypedAnalyzer<SynonymsTokenizer>,
 
   static constexpr std::string_view type_name() noexcept { return "synonyms"; }
 
-  static ParseResult<synonyms_holder> parse(std::string_view input);
-  static ParseResult<synonyms_map> parse(const synonyms_holder& holder);
+  static sdb::ResultOr<synonyms_holder> parse(std::string_view input);
+  static sdb::ResultOr<synonyms_map> parse(const synonyms_holder& holder);
 
   explicit SynonymsTokenizer(synonyms_map&&);
   Attribute* GetMutable(TypeInfo::type_id type) final {

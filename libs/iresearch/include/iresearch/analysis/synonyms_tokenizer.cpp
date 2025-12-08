@@ -5,33 +5,80 @@
 
 #include <iresearch/analysis/pipeline_tokenizer.hpp>
 #include <iresearch/analysis/token_attributes.hpp>
+#include <iterator>
 #include <string_view>
 
-#include "maskings/parse_result.h"
+#include "basics/exceptions.h"
+#include "basics/result.h"
 
 namespace irs::analysis {
 
-ParseResult<SynonymsTokenizer::synonyms_holder> SynonymsTokenizer::parse(
+namespace {
+SynonymsTokenizer::synonyms_line SplitLine(const std::string_view line) {
+  std::set<std::string_view> outputs;
+  for (std::string_view s : absl::StrSplit(line, ',')) {
+    auto candidate = absl::StripAsciiWhitespace(s);
+    if (candidate.empty()) {
+      SDB_THROW(sdb::ERROR_VALIDATION_BAD_PARAMETER);
+    }
+    // @todo unescape
+    outputs.insert(absl::StripAsciiWhitespace(s));
+  }
+  return {std::make_move_iterator(outputs.begin()),
+          std::make_move_iterator(outputs.end())};
+}
+}  // namespace
+
+sdb::ResultOr<SynonymsTokenizer::synonyms_holder> SynonymsTokenizer::parse(
   std::string_view input) {
   synonyms_holder owner;
 
   std::vector<std::string_view> lines = absl::StrSplit(input, '\n');
-
+  size_t line_number{};
   for (const auto& line : lines) {
+    line_number++;
     if (line.empty() || line[0] == '#')
       continue;
-    std::vector<std::string_view> synonyms;
-    for (std::string_view s : absl::StrSplit(line, ',')) {
-      synonyms.push_back(absl::StripAsciiWhitespace(s));
-    }
+    std::vector<std::string_view> sides = absl::StrSplit(line, "=>");
+    if (sides.size() > 1) {
+      if (sides.size() != 2) {
+        return std::unexpected<sdb::Result>{
+          std::in_place, sdb::ERROR_VALIDATION_BAD_PARAMETER,
+          "More than one explicit mapping specified on the line ", line_number};
+      }
 
-    owner.push_back(std::move(synonyms));
+      SynonymsTokenizer::synonyms_line outputs;
+      try {
+        auto inputs = SplitLine(sides[0]);
+        outputs = SplitLine(sides[1]);
+      } catch (...) {
+        return std::unexpected<sdb::Result>{std::in_place,
+                                            sdb::ERROR_VALIDATION_BAD_PARAMETER,
+                                            "Failed parse line ", line_number};
+      }
+
+      owner.push_back(std::move(outputs));
+
+    } else {
+      SynonymsTokenizer::synonyms_line outputs;
+      try {
+        outputs = SplitLine(sides[0]);
+      } catch (...) {
+        return std::unexpected<sdb::Result>{std::in_place,
+                                            sdb::ERROR_VALIDATION_BAD_PARAMETER,
+                                            "Failed parse line ", line_number};
+      }
+
+      owner.push_back(std::move(outputs));
+    }
   }
 
-  return ParseResult<synonyms_holder>(std::move(owner));
+  // @todo map input -> output
+
+  return owner;
 }
 
-ParseResult<SynonymsTokenizer::synonyms_map> SynonymsTokenizer::parse(
+sdb::ResultOr<SynonymsTokenizer::synonyms_map> SynonymsTokenizer::parse(
   const synonyms_holder& holder) {
   synonyms_map result;
   for (const auto& line : holder) {
@@ -39,7 +86,7 @@ ParseResult<SynonymsTokenizer::synonyms_map> SynonymsTokenizer::parse(
       result[synonym] = &line;
     }
   }
-  return ParseResult<synonyms_map>(std::move(result));
+  return result;
 }
 
 SynonymsTokenizer::SynonymsTokenizer(SynonymsTokenizer::synonyms_map&& synonyms)

@@ -104,39 +104,160 @@ TEST(token_synonyms_stream_tests, parsing) {
   {
     std::string_view data0("foo,bar\n");
     auto result = SynonymsTokenizer::parse(data0);
-    const auto holder = result.result;
+    ASSERT_TRUE(result);
+    const auto holder = *result;
     {
-      SynonymsTokenizer::synonyms_holder expected{{"foo", "bar"}};
+      SynonymsTokenizer::synonyms_holder expected{{"bar", "foo"}};
       ASSERT_EQ(expected, holder);
     }
 
     {
-      const auto sysnosyms_map = SynonymsTokenizer::parse(holder);
+      const auto actual = SynonymsTokenizer::parse(holder);
+      ASSERT_TRUE(actual);
+
       SynonymsTokenizer::synonyms_map expected = {
         {"foo", &holder.back()},
         {"bar", &holder.back()},
       };
-      ASSERT_EQ(expected, sysnosyms_map.result);
+      ASSERT_EQ(expected, *actual);
+    }
+  }
+
+  {
+    std::string_view data0("foo,bar=>foo,bar\n");
+    auto result = SynonymsTokenizer::parse(data0);
+    ASSERT_TRUE(result);
+    const auto holder = *result;
+    {
+      SynonymsTokenizer::synonyms_holder expected{{"bar", "foo"}};
+      ASSERT_EQ(expected, holder);
+    }
+
+    {
+      const auto actual = SynonymsTokenizer::parse(holder);
+      ASSERT_TRUE(actual);
+
+      SynonymsTokenizer::synonyms_map expected = {
+        {"foo", &holder.back()},
+        {"bar", &holder.back()},
+      };
+      ASSERT_EQ(expected, *actual);
     }
   }
 
   {
     std::string_view data0("foo,bar\n\n#some comment\naaa, bbb, cc");
     auto result = SynonymsTokenizer::parse(data0);
-    const auto holder = result.result;
+    ASSERT_TRUE(result);
+    const auto holder = *result;
     {
-      SynonymsTokenizer::synonyms_holder expected{{"foo", "bar"},
+      SynonymsTokenizer::synonyms_holder expected{{"bar", "foo"},
                                                   {"aaa", "bbb", "cc"}};
       ASSERT_EQ(expected, holder);
     }
 
     {
       const auto actual = SynonymsTokenizer::parse(holder);
+      ASSERT_TRUE(actual);
+
       SynonymsTokenizer::synonyms_map expected = {
         {"foo", &holder[0]}, {"bar", &holder[0]}, {"aaa", &holder[1]},
         {"bbb", &holder[1]}, {"cc", &holder[1]},
       };
-      ASSERT_EQ(expected, actual.result);
+      ASSERT_EQ(expected, *actual);
+    }
+  }
+
+  {
+    std::string_view data0(
+      "foo,bar=>foo,bar\n\n#some comment\naaa, bbb, cc => aaa, bbb, cc");
+    auto result = SynonymsTokenizer::parse(data0);
+    ASSERT_TRUE(result);
+    const auto holder = *result;
+    {
+      SynonymsTokenizer::synonyms_holder expected{{"bar", "foo"},
+                                                  {"aaa", "bbb", "cc"}};
+      ASSERT_EQ(expected, holder);
+    }
+
+    {
+      const auto actual = SynonymsTokenizer::parse(holder);
+      ASSERT_TRUE(actual);
+
+      SynonymsTokenizer::synonyms_map expected = {
+        {"foo", &holder[0]}, {"bar", &holder[0]}, {"aaa", &holder[1]},
+        {"bbb", &holder[1]}, {"cc", &holder[1]},
+      };
+
+      ASSERT_EQ(expected, *actual);
+    }
+  }
+
+  {
+    std::string_view data0("aaa, bbb, cc => => aaa, bbb, cc");
+    auto result = SynonymsTokenizer::parse(data0);
+    ASSERT_TRUE(result.error().is(sdb::ERROR_VALIDATION_BAD_PARAMETER));
+    ASSERT_EQ(result.error().errorMessage(),
+              "More than one explicit mapping specified on the line 1");
+  }
+
+  {
+    std::string_view data0("aaa,");
+    auto result = SynonymsTokenizer::parse(data0);
+    ASSERT_TRUE(result.error().is(sdb::ERROR_VALIDATION_BAD_PARAMETER));
+    ASSERT_EQ(result.error().errorMessage(), "Failed parse line 1");
+  }
+
+  {
+    std::string_view data0("aaa,=>aaa");
+    auto result = SynonymsTokenizer::parse(data0);
+    ASSERT_TRUE(result.error().is(sdb::ERROR_VALIDATION_BAD_PARAMETER));
+    ASSERT_EQ(result.error().errorMessage(), "Failed parse line 1");
+  }
+
+  {
+    std::string_view data0("aaa,bbb=>aaa,");
+    auto result = SynonymsTokenizer::parse(data0);
+    ASSERT_TRUE(result.error().is(sdb::ERROR_VALIDATION_BAD_PARAMETER));
+    ASSERT_EQ(result.error().errorMessage(), "Failed parse line 1");
+  }
+  {
+    std::string_view data0("\n#aa\naaa,,bbb=>aaa,bbb");
+    auto result = SynonymsTokenizer::parse(data0);
+    ASSERT_TRUE(result.error().is(sdb::ERROR_VALIDATION_BAD_PARAMETER));
+    ASSERT_EQ(result.error().errorMessage(), "Failed parse line 3");
+  }
+
+  {
+    std::string_view data0("foo,bar,foo");
+    auto result = SynonymsTokenizer::parse(data0);
+    ASSERT_TRUE(result);
+    const auto holder = *result;
+    {
+      SynonymsTokenizer::synonyms_holder expected{{"bar", "foo"}};
+      ASSERT_EQ(expected, holder);
+    }
+  }
+
+  {
+    std::string_view data0("foo,bar,foo=>foo,bar");
+    auto result = SynonymsTokenizer::parse(data0);
+    ASSERT_TRUE(result);
+    const auto holder = *result;
+    {
+      SynonymsTokenizer::synonyms_holder expected{{"bar", "foo"}};
+      ASSERT_EQ(expected, holder);
+    }
+  }
+
+  {
+    std::string_view data0("foo,bar,foo=>foo,bar");
+    auto result = SynonymsTokenizer::parse(data0);
+    ASSERT_TRUE(result);
+    const auto holder = *result;
+    {
+      SynonymsTokenizer::synonyms_holder expected{{"bar", "foo"}};
+      ASSERT_EQ(expected, holder);
     }
   }
 }
