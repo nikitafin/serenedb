@@ -17,6 +17,12 @@ git remote add upstream git@github.com:serenedb/serenedb.git
 git submodule update --init --recursive --jobs=$(nproc)
 ```
 
+## Build Prerequisites
+
+Compiler: clang-20 / clang++-20
+Build system: Ninja
+CMake >= 3.26
+
 ## Build
 
 Use cmake with preset 'lldb' to build it in debug. Additional build presets are defined in `CMakePresets.json` file.
