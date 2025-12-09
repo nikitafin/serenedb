@@ -89,7 +89,7 @@ There's a little gif guide with an action list below:
 2) Open a VSCode command palette via default combination : ctrl + shift + p / cmd + shift + p for macOS.
 3) Write in the palette `Open Profiles` and choose an `Preferences: Open Profiles (UI)` option.
 4) In the UI of the profiles click on the down arrow which is located left to the `New Profile` button.
-5) Choose import profile and specify a path to the `serenedb-cpp.code-profile` .
+5) Choose import profile and specify a path to the `serenedb-cpp.code-profile`.
 6) Create the profile and switch to it.
 7) If a message appears offering to download the clangd server, accept it.
 
