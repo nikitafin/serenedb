@@ -312,6 +312,9 @@ void PgSQLCommTaskBase::HandleClientHello(std::string_view packet) {
         SendParameterStatus(param, GetDefaultVariable(param));
       }
 
+      _connection_ctx->GetConfig().Set(
+        Config::VariableContext::Session, "current_database_id",
+        folly::to<std::string>(_database->GetId().id()));
       _send.Write(ToBuffer(kReadyForQuery), true);
       std::move(cleanup).Cancel();
       _success_packet = true;

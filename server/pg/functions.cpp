@@ -28,9 +28,11 @@
 #include <velox/functions/prestosql/DateTimeImpl.h>
 #include <velox/type/SimpleFunctionApi.h>
 
+#include "app/app_server.h"
 #include "basics/assert.h"
 #include "basics/down_cast.h"
 #include "basics/static_strings.h"
+#include "catalog/catalog.h"
 #include "pg/extract.h"
 #include "pg/interval.h"
 #include "pg/serialize.h"
@@ -208,26 +210,71 @@ template<typename T>
 struct CurrentSchemaFunction {
   VELOX_DEFINE_FUNCTION_TYPES(T);
 
-  FOLLY_ALWAYS_INLINE void call(out_type<velox::Varchar>& out) {  // NOLINT
-    // TODO(codeworse): implement proper schema resolution
-    out = StaticStrings::kPublic;
+  FOLLY_ALWAYS_INLINE void initialize(  // NOLINT
+    const std::vector<velox::TypePtr>& /*inputTypes*/,
+    const velox::core::QueryConfig& config) {
+    auto cfg = basics::downCast<const Config>(config.config());
+    _database_id = cfg->Get<VariableType::ObjectId>("current_database_id");
+    _search_path = cfg->Get<VariableType::PgSearchPath>("search_path")
+                     .value_or(std::vector<std::string>{});
   }
+
+  FOLLY_ALWAYS_INLINE void call(out_type<velox::Varchar>& out) {  // NOLINT
+    auto& catalog =
+      SerenedServer::Instance().getFeature<catalog::CatalogFeature>().Global();
+    for (const std::string_view schema_name : _search_path) {
+      auto schema = catalog.GetSchema(_database_id, schema_name);
+      if (schema) {
+        out = schema_name;
+        return;
+      }
+    }
+    return;
+  }
+
+ private:
+  ObjectId _database_id;
+  std::vector<std::string> _search_path;
 };
 
 template<typename T>
 struct CurrentSchemasFunction {
   VELOX_DEFINE_FUNCTION_TYPES(T);
 
+  FOLLY_ALWAYS_INLINE void initialize(  // NOLINT
+    const std::vector<velox::TypePtr>& /*inputTypes*/,
+    const velox::core::QueryConfig& config,
+    const arg_type<bool>& /*include_implicit*/) {
+    auto cfg = basics::downCast<const Config>(config.config());
+    _database_id = cfg->Get<VariableType::ObjectId>("current_database_id");
+  }
+
   FOLLY_ALWAYS_INLINE void call(  // NOLINT
     out_type<velox::Array<velox::Varchar>>& out,
     const arg_type<bool>& include_implicit) {
-    // TODO(codeworse): implement proper schema resolution
-
     if (include_implicit) {
       out.add_item().copy_from("pg_catalog");
     }
-    out.add_item().copy_from(StaticStrings::kPublic);
+    GetCurrentSchemas(out);
   }
+
+ private:
+  void GetCurrentSchemas(out_type<velox::Array<velox::Varchar>>& out) {
+    auto& catalog =
+      SerenedServer::Instance().getFeature<catalog::CatalogFeature>().Global();
+    std::vector<std::shared_ptr<catalog::Schema>> schemas;
+    auto r = catalog.GetSchemas(_database_id, schemas);
+    if (!r.ok()) {
+      THROW_SQL_ERROR(ERR_CODE(ERRCODE_INTERNAL_ERROR),
+                      ERR_MSG("Failed to get schemas: ", r.errorMessage()));
+    }
+    for (const auto& schema : schemas) {
+      SDB_ASSERT(schema);
+      out.add_item().copy_from(schema->GetName());
+    }
+  }
+
+  ObjectId _database_id;
 };
 
 template<typename T>

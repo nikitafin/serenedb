@@ -35,6 +35,7 @@
 #include "basics/exceptions.h"
 #include "basics/fwd.h"
 #include "basics/system-compiler.h"
+#include "catalog/identifiers/object_id.h"
 
 namespace sdb {
 
@@ -47,6 +48,7 @@ enum class VariableType {
   U64,
   F64,
   String,
+  ObjectId,
   PgSearchPath,
   PgExtraFloatDigits,
   PgByteaOutput,
@@ -118,6 +120,10 @@ class Config : public velox::config::IConfig {
                    "bytea_output is not validated");
         return ByteaOutput::Escape;
       }
+    } else if constexpr (T == VariableType::ObjectId) {
+      SDB_ASSERT(value_str);
+      uint64_t value = folly::to<uint64_t>(*value_str);
+      return ObjectId{value};
     } else {
       SDB_THROW(ERROR_NOT_IMPLEMENTED);
     }
