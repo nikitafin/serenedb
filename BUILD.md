@@ -97,7 +97,7 @@ Now you can use C++ code navigation by ctrl + click (cmd + click for macOS)!
 
 ## Debug
 
-Also VSCode provides a convinent way to debug code. There're some steps to make it work:
+Also VSCode provides a convenient way to debug code. There're some steps to make it work:
 
 1) Create a `.vscode/launch.json` file.
 2) Paste there a config:
